@@ -2,9 +2,15 @@
 //! It seeks to provide an easy to use interface for common use cases, such as web request with
 //! many optional parameters.
 //!
+//! ## Implementation
 //! The derived builders offer compile-time guarantees that no incorrect instance will be created
-//! without super-linear compile times since required parameters go directly in the constructor,
-//! but calling `build` twice will result in a panic, since it owns and consumes passed in data.
+//! without super-linear compile times since required parameters go directly in the constructor.
+//!
+//! There are two downsides to this:
+//! - The derived builders have lengthy constructors for structs with many required parameters.
+//! This is arguably no longer a builder pattern, and as such isn't suitable for structs with many
+//! required parameters.
+//! - Calling `build` twice will result in a panic, since it owns and consumes the passed in data.
 //!
 //! Other implementations may suit your needs better if you have many _required_ parameters,
 //! need to clone your builders, or have strict requirements for compile-time type checking of

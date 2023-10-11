@@ -3,6 +3,7 @@ name = "simple-builder-macro"
 version = "0.0.2"
 edition = "2021"
 license = "MIT"
+authors = ["Brendan Blanchard"]
 description = "A procedural macro for creating a Builder object for any struct."
 repository = "https://github.com/Brendan-Blanchard/simple-builder"
 exclude = [".idea", ".gitignore", ".github"]

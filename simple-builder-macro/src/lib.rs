@@ -12,7 +12,7 @@ use syn::{
 /// Macro that derives a Builder object for any given struct. E.g. `SomeType` -> `SomeTypeBuilder`.
 ///
 /// Simple-Builder takes ownership of inputs and stores them in `Option<T>` for each field. Fields that
-/// are marked `[builder(required)]` will be part of the `new()` call so they're guaranteed
+/// are marked `#[builder(required)]` will be part of the `new()` call so they're guaranteed
 /// to be set on the final object.
 ///
 ///
