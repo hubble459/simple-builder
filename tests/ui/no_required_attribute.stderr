@@ -1,0 +1,7 @@
+error: proc-macro derive panicked
+ --> tests/ui/no_required_attribute.rs:3:10
+  |
+3 | #[derive(Builder)]
+  |          ^^^^^^^
+  |
+  = help: message: Struct fields must be of type Option<...>, or have #[builder(required)] attribute.

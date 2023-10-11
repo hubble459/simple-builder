@@ -1,0 +1,7 @@
+error: proc-macro derive panicked
+ --> tests/ui/failed_attribute_parsing.rs:3:10
+  |
+3 | #[derive(Builder)]
+  |          ^^^^^^^
+  |
+  = help: message: Parsing nested meta within #[builder(...)] failed.: Error("unexpected token in nested attribute, expected ident")

@@ -1,0 +1,16 @@
+[package]
+name = "simple-builder-macro"
+version = "0.0.2"
+edition = "2021"
+license = "MIT"
+description = "A procedural macro for creating a Builder object for any struct."
+repository = "https://github.com/Brendan-Blanchard/simple-builder"
+exclude = [".idea", ".gitignore", ".github"]
+
+[dependencies]
+proc-macro2 = "1.0.68"
+quote = "1.0.33"
+syn = { version = "2.0.38", features = ["full"] }
+
+[lib]
+proc-macro = true
