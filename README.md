@@ -17,7 +17,7 @@ use simple_builder_macro::Builder;
 #[derive(Debug, PartialEq, Eq, Builder)]
 struct Breakfast {
     #[builder(required)]
-    pub coffee_oz: i64, // coffee is required, and therefore not Option<T>
+    pub coffee: i64, // coffee is required, and therefore not Option<T>
     pub toast: Option<i64>,
     pub eggs: Option<i64>,
     pub bacon: Option<i64>,
@@ -25,15 +25,15 @@ struct Breakfast {
 
 pub fn main() {
     let desired_breakfast = Breakfast {
-        coffee_oz: 16,
+        coffee: 1,
         toast: None,
-        eggs: Some(2),
+        eggs: Some(3),
         bacon: Some(2),
     };
     
     // semantically equivalent to `Breakfast::builder(16)`
     let mut builder = BreakfastBuilder::new(16);
-    let breakfast = builder.eggs(2).bacon(2).build();
+    let breakfast = builder.eggs(3).bacon(2).build();
     
     assert_eq!(desired_breakfast, breakfast);
 }

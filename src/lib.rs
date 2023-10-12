@@ -4,7 +4,8 @@
 //!
 //! ## Implementation
 //! The derived builders offer compile-time guarantees that no incorrect instance will be created
-//! without super-linear compile times since required parameters go directly in the constructor.
+//! without super-linear compile times since required parameters go directly in the `new` method of
+//! the builder.
 //!
 //! There are two downsides to this:
 //! - The derived builders have lengthy constructors for structs with many required parameters.
