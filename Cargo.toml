@@ -3,7 +3,7 @@ members = [".", "simple-builder-macro"]
 
 [package]
 name = "simple-builder"
-version = "0.0.2"
+version = "0.0.3"
 edition = "2021"
 authors = ["Brendan Blanchard"]
 license = "MIT"
@@ -13,4 +13,6 @@ exclude = [".idea", ".gitignore", ".github"]
 
 [dependencies]
 simple-builder-macro = { version = "0.0.2", path = "simple-builder-macro" }
+
+[dev-dependencies]
 trybuild = "1.0"
