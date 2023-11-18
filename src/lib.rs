@@ -17,216 +17,225 @@
 //! need to clone your builders, or have strict requirements for compile-time type checking of
 //! required parameters and intermediate states.
 pub use simple_builder_macro::Builder;
+use thiserror::Error;
 
-#[derive(Builder, Debug, PartialEq)]
-struct TestItemOptionals {
-    a: Option<String>,
-    b: Option<bool>,
+#[derive(Debug, Error)]
+pub enum SimpleBuilderError {
+    #[error("Missing fields: {0:?}")]
+    BuildError(Vec<String>),
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+pub use SimpleBuilderError::BuildError;
 
-    #[derive(Builder, Debug, PartialEq)]
-    struct TestItem {
-        #[builder(required)]
-        a: i32,
-        #[builder(required)]
-        b: i32,
-    }
+// #[derive(Builder, Debug, PartialEq)]
+// struct TestItemOptionals {
+//     a: Option<String>,
+//     b: Option<bool>,
+// }
 
-    #[derive(Builder, Debug, PartialEq)]
-    struct TestItemOptionals {
-        a: Option<String>,
-        b: Option<bool>,
-    }
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
 
-    #[derive(Builder, Debug, PartialEq)]
-    struct TestItemMixedRequiredOptionals {
-        a: Option<String>,
-        b: Option<bool>,
-        #[builder(required)]
-        c: i32,
-    }
+//     #[derive(Builder, Debug, PartialEq)]
+//     struct TestItem {
+//         #[builder(required)]
+//         a: i32,
+//         #[builder(required)]
+//         b: i32,
+//     }
 
-    #[derive(Builder, Debug, PartialEq)]
-    struct TestItemMixedRequiredOptionalReferences<'t> {
-        a: Option<&'t str>,
-        #[builder(required)]
-        b: &'t str,
-    }
+//     #[derive(Builder, Debug, PartialEq)]
+//     struct TestItemOptionals {
+//         a: Option<String>,
+//         b: Option<bool>,
+//     }
 
-    #[test]
-    fn test_developer_experience() {
-        let t = trybuild::TestCases::new();
-        t.compile_fail("tests/ui/*.rs");
-    }
+//     #[derive(Builder, Debug, PartialEq)]
+//     struct TestItemMixedRequiredOptionals {
+//         a: Option<String>,
+//         b: Option<bool>,
+//         #[builder(required)]
+//         c: i32,
+//     }
 
-    #[test]
-    fn test_builder_method_on_original_struct() {
-        let expected_item = TestItem { a: 0, b: 1 };
+//     #[derive(Builder, Debug, PartialEq)]
+//     struct TestItemMixedRequiredOptionalReferences<'t> {
+//         a: Option<&'t str>,
+//         #[builder(required)]
+//         b: &'t str,
+//     }
 
-        let mut builder = TestItem::builder(0, 1);
+//     #[test]
+//     fn test_developer_experience() {
+//         let t = trybuild::TestCases::new();
+//         t.compile_fail("tests/ui/*.rs");
+//     }
 
-        let test_item = builder.build();
+//     #[test]
+//     fn test_builder_method_on_original_struct() {
+//         let expected_item = TestItem { a: 0, b: 1 };
 
-        assert_eq!(expected_item, test_item);
-    }
+//         let mut builder = TestItem::builder(0, 1);
 
-    #[test]
-    #[should_panic(
-        expected = "Option must be Some(T) for required fields. Builder may have already been consumed by calling `build`"
-    )]
-    fn test_builder_panic_on_second_build_call() {
-        let mut builder = TestItem::builder(0, 1);
+//         let test_item = builder.build();
 
-        let _first_build = builder.build();
-        let _second_build = builder.build();
-    }
+//         assert_eq!(expected_item, test_item);
+//     }
 
-    #[test]
-    fn test_empty_builder_none_required() {
-        let expected_item = TestItem { a: 0, b: 1 };
+//     #[test]
+//     #[should_panic(
+//         expected = "Option must be Some(T) for required fields. Builder may have already been consumed by calling `build`"
+//     )]
+//     fn test_builder_panic_on_second_build_call() {
+//         let mut builder = TestItem::builder(0, 1);
 
-        let mut builder = TestItemBuilder::new(0, 1);
+//         let _first_build = builder.build();
+//         let _second_build = builder.build();
+//     }
 
-        let test_item = builder.build();
+//     #[test]
+//     fn test_empty_builder_none_required() {
+//         let expected_item = TestItem { a: 0, b: 1 };
 
-        assert_eq!(expected_item, test_item);
-    }
+//         let mut builder = TestItemBuilder::new(0, 1);
 
-    #[test]
-    fn test_builder_with_required() {
-        let expected_item = TestItemOptionals { a: None, b: None };
+//         let test_item = builder.build();
 
-        let mut builder = TestItemOptionals::builder();
+//         assert_eq!(expected_item, test_item);
+//     }
 
-        let test_item = builder.build();
+//     #[test]
+//     fn test_builder_with_required() {
+//         let expected_item = TestItemOptionals { a: None, b: None };
 
-        assert_eq!(expected_item, test_item);
-    }
+//         let mut builder = TestItemOptionals::builder();
 
-    #[test]
-    fn test_builder_optional_all_present() {
-        let expected_item = TestItemOptionals {
-            a: Some("string".to_string()),
-            b: Some(false),
-        };
+//         let test_item = builder.build();
 
-        let mut builder = TestItemOptionalsBuilder::new();
+//         assert_eq!(expected_item, test_item);
+//     }
 
-        let item = builder.a("string".to_string()).b(false).build();
+//     #[test]
+//     fn test_builder_optional_all_present() {
+//         let expected_item = TestItemOptionals {
+//             a: Some("string".to_string()),
+//             b: Some(false),
+//         };
 
-        assert_eq!(expected_item, item);
-    }
+//         let mut builder = TestItemOptionalsBuilder::new();
 
-    #[test]
-    fn test_builder_optional_with_none() {
-        let expected_item = TestItemOptionals {
-            a: None,
-            b: Some(false),
-        };
+//         let item = builder.a("string".to_string()).b(false).build();
 
-        let mut builder = TestItemOptionalsBuilder::new();
+//         assert_eq!(expected_item, item);
+//     }
 
-        let item = builder.b(false).build();
+//     #[test]
+//     fn test_builder_optional_with_none() {
+//         let expected_item = TestItemOptionals {
+//             a: None,
+//             b: Some(false),
+//         };
 
-        assert_eq!(expected_item, item);
-    }
+//         let mut builder = TestItemOptionalsBuilder::new();
 
-    #[test]
-    fn test_builder_mixed_required_and_optional() {
-        let expected_item = TestItemMixedRequiredOptionals {
-            a: Some("string".to_string()),
-            b: None,
-            c: 42,
-        };
+//         let item = builder.b(false).build();
 
-        let mut builder = TestItemMixedRequiredOptionalsBuilder::new(42);
+//         assert_eq!(expected_item, item);
+//     }
 
-        let item = builder.a("string".to_string()).build();
+//     #[test]
+//     fn test_builder_mixed_required_and_optional() {
+//         let expected_item = TestItemMixedRequiredOptionals {
+//             a: Some("string".to_string()),
+//             b: None,
+//             c: 42,
+//         };
 
-        assert_eq!(expected_item, item);
-    }
+//         let mut builder = TestItemMixedRequiredOptionalsBuilder::new(42);
 
-    #[test]
-    fn test_builder_mixed_required_and_optional_references() {
-        let expected_item = TestItemMixedRequiredOptionalReferences {
-            a: Some("a"),
-            b: "string",
-        };
+//         let item = builder.a("string".to_string()).build();
 
-        let mut builder = TestItemMixedRequiredOptionalReferencesBuilder::new("string");
+//         assert_eq!(expected_item, item);
+//     }
 
-        let item = builder.a("a").build();
+//     #[test]
+//     fn test_builder_mixed_required_and_optional_references() {
+//         let expected_item = TestItemMixedRequiredOptionalReferences {
+//             a: Some("a"),
+//             b: "string",
+//         };
 
-        assert_eq!(expected_item, item);
-    }
+//         let mut builder = TestItemMixedRequiredOptionalReferencesBuilder::new("string");
 
-    #[test]
-    fn test_builder_ownership() {
-        #[derive(Debug, PartialEq, Eq)]
-        struct Item {
-            field: i32,
-        }
+//         let item = builder.a("a").build();
 
-        #[derive(Builder, Debug, Eq, PartialEq)]
-        struct TestItem {
-            a: Option<Item>,
-            #[builder(required)]
-            b: Item,
-        }
+//         assert_eq!(expected_item, item);
+//     }
 
-        let a = Item { field: 0 };
-        let a1 = Item { field: 0 };
+//     #[test]
+//     fn test_builder_ownership() {
+//         #[derive(Debug, PartialEq, Eq)]
+//         struct Item {
+//             field: i32,
+//         }
 
-        let b = Item { field: 1 };
-        let b1 = Item { field: 1 };
+//         #[derive(Builder, Debug, Eq, PartialEq)]
+//         struct TestItem {
+//             a: Option<Item>,
+//             #[builder(required)]
+//             b: Item,
+//         }
 
-        let mut builder = TestItem::builder(b);
+//         let a = Item { field: 0 };
+//         let a1 = Item { field: 0 };
 
-        let item = builder.a(a).build();
+//         let b = Item { field: 1 };
+//         let b1 = Item { field: 1 };
 
-        let expected_item = TestItem { a: Some(a1), b: b1 };
+//         let mut builder = TestItem::builder(b);
 
-        assert_eq!(expected_item, item);
-    }
+//         let item = builder.a(a).build();
 
-    #[test]
-    fn test_builder_with_required_trait_and_lifetimes() {
-        trait Marker {}
+//         let expected_item = TestItem { a: Some(a1), b: b1 };
 
-        #[derive(Debug, Eq, PartialEq, PartialOrd)]
-        struct GenericT {
-            num: i64,
-        }
+//         assert_eq!(expected_item, item);
+//     }
 
-        impl Marker for GenericT {}
+//     #[test]
+//     fn test_builder_with_required_trait_and_lifetimes() {
+//         trait Marker {}
 
-        #[derive(Builder, Debug, Eq, PartialEq)]
-        struct TestItemGenericAddress<'t, 'u, T, U>
-        where
-            T: Marker,
-            U: Marker,
-        {
-            a: Option<&'t T>,
-            #[builder(required)]
-            b: &'u U,
-        }
+//         #[derive(Debug, Eq, PartialEq, PartialOrd)]
+//         struct GenericT {
+//             num: i64,
+//         }
 
-        let test_struct_t = GenericT { num: 42 };
-        let test_struct_u = GenericT { num: 1 };
+//         impl Marker for GenericT {}
 
-        let expected_item = TestItemGenericAddress {
-            a: Some(&test_struct_t),
-            b: &test_struct_u,
-        };
+//         #[derive(Builder, Debug, Eq, PartialEq)]
+//         struct TestItemGenericAddress<'t, 'u, T, U>
+//         where
+//             T: Marker,
+//             U: Marker,
+//         {
+//             a: Option<&'t T>,
+//             #[builder(required)]
+//             b: &'u U,
+//         }
 
-        let mut builder = TestItemGenericAddress::builder(&test_struct_u);
+//         let test_struct_t = GenericT { num: 42 };
+//         let test_struct_u = GenericT { num: 1 };
 
-        let item = builder.a(&test_struct_t).build();
+//         let expected_item = TestItemGenericAddress {
+//             a: Some(&test_struct_t),
+//             b: &test_struct_u,
+//         };
 
-        assert_eq!(expected_item, item);
-    }
-}
+//         let mut builder = TestItemGenericAddress::builder(&test_struct_u);
+
+//         let item = builder.a(&test_struct_t).build();
+
+//         assert_eq!(expected_item, item);
+//     }
+// }

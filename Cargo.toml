@@ -13,6 +13,7 @@ exclude = [".idea", ".gitignore", ".github"]
 
 [dependencies]
 simple-builder-macro = { version = "0.0.2", path = "simple-builder-macro" }
+thiserror = "1.0.50"
 
 [dev-dependencies]
 trybuild = "1.0"

@@ -5,8 +5,8 @@ use proc_macro2::{self, Span, TokenStream};
 use quote::quote;
 use std::vec::Vec;
 use syn::{
-    parse_macro_input, Attribute, DeriveInput, Field, Fields, GenericArgument, Ident, Path,
-    PathArguments, Type,
+    parse_macro_input, DeriveInput, Field, Fields, GenericArgument, Ident, Path, PathArguments,
+    Type, Attribute,
 };
 
 /// Macro that derives a Builder object for any given struct. E.g. `SomeType` -> `SomeTypeBuilder`.
@@ -70,32 +70,14 @@ pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         .filter(|field| field.ident.is_some())
         .collect();
 
-    let required_fields: Vec<&Field> = named_fields
-        .iter()
-        .filter_map(|field| {
-            if has_attr(field, "required") {
-                Some(*field)
-            } else {
-                None
-            }
-        })
-        .collect();
-
-    let optional_fields: Vec<&Field> = named_fields
-        .iter()
-        .filter_map(|field| {
-            if has_attr(field, "required") {
-                None
-            } else {
-                Some(*field)
-            }
-        })
-        .collect();
-
-    let builder_setter_methods: TokenStream = optional_fields
+    let builder_setter_methods: TokenStream = named_fields
         .iter()
         .map(|field| {
             let field_ident = &field.ident;
+            let field_has_ident = Ident::new(
+                &(String::from("has_") + &field_ident.clone().unwrap().to_string()),
+                Span::call_site(),
+            );
             let field_ty = &field.ty;
 
             let type_of_option = extract_type_from_option(field_ty);
@@ -105,63 +87,42 @@ pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     self.#field_ident = ::std::option::Option::Some(#field_ident);
                     self
                 }
+
+                pub fn #field_has_ident(&mut self) -> bool {
+                    self.#field_ident.is_some()
+                }
             }
         })
         .collect();
 
-    let required_new_fields: TokenStream = required_fields
+    let builder_new_fields: TokenStream = named_fields
         .iter()
         .map(|field| {
             let ident = &field.ident;
+            if has_attr(field, "default") {
+                return quote! {
+                    #ident: ::std::option::Option::Some(Default::default()),
+                };
+            }
             quote! {
-                #ident: ::std::option::Option::Some(#ident),
+                #ident: ::std::option::Option::None,
             }
         })
         .collect();
 
-    let empty_new_fields: TokenStream = optional_fields
-        .iter()
-        .map(|field| {
-            let ident = &field.ident;
-            quote! {
-                #ident: None,
-            }
-        })
-        .collect();
-
-    let builder_required_fields: TokenStream = required_fields
-        .iter()
-        .map(|field| {
-            let ident = &field.ident;
-            let ty = &field.ty;
-            quote! {
-                #ident: ::std::option::Option<#ty>,
-            }
-        })
-        .collect();
-
-    let builder_optional_fields: TokenStream = optional_fields
+    let builder_fields: TokenStream = named_fields
         .iter()
         .map(|field| {
             let ident = &field.ident;
             let ty = &field.ty;
-            quote! {
-                #ident: #ty,
-            }
-        })
-        .collect();
-
-    let builder_struct_fields: TokenStream = builder_required_fields
-        .into_iter()
-        .chain(builder_optional_fields)
-        .collect();
-
-    let new_method_params: TokenStream = required_fields
-        .iter()
-        .map(|field| {
-            let (arg, ty) = (&field.ident, &field.ty);
-            quote! {
-                #arg: #ty,
+            if type_is_option(ty) {
+                quote! {
+                    #ident: #ty,
+                }
+            } else {
+                quote! {
+                    #ident: ::std::option::Option<#ty>,
+                }
             }
         })
         .collect();
@@ -169,29 +130,40 @@ pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let build_fn_struct_fields: TokenStream = named_fields
         .iter()
         .map(|field| {
-            let is_required = has_attr(field, "required");
-
             let ident = &field.ident;
 
-            if is_required {
-                // .expect() should be possible only when build is called twice, since these are required private fields set by `new`
-                quote! {
-                    #ident: self.#ident.take().expect("Option must be Some(T) for required fields. Builder may have already been consumed by calling `build`"),
-                }
-            } else {
+            if type_is_option(&field.ty) {
                 quote! {
                     #ident: self.#ident.take(),
                 }
+            } else {
+                quote! {
+                    #ident: self.#ident.take().unwrap(),
+                }
+            }
+        })
+        .collect();
+
+    let build_required_checks: TokenStream = named_fields
+        .iter()
+        .filter_map(|field| {
+            if !type_is_option(&field.ty) {
+                let ident = &field.ident;
+                let ident_str = ident.as_ref().unwrap().to_string();
+                Some(quote! {
+                    if self.#ident.is_none() { errors.push(String::from(#ident_str)); }
+                })
+            } else {
+                None
             }
         })
         .collect();
 
     let struct_impl = quote! {
         impl #impl_generics #ident #ty_generics #where_clause {
-            pub fn builder(#new_method_params) -> #builder_ident #ty_generics {
+            pub fn builder() -> #builder_ident #ty_generics {
                 #builder_ident {
-                    #required_new_fields
-                    #empty_new_fields
+                    #builder_new_fields
                 }
             }
         }
@@ -199,22 +171,26 @@ pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     let builder_struct = quote! {
         #vis struct #builder_ident #ty_generics #where_clause {
-            #builder_struct_fields
+            #builder_fields
         }
 
         impl #impl_generics #builder_ident #ty_generics #where_clause {
-
-            pub fn new(#new_method_params) -> #builder_ident #ty_generics {
+            pub fn new() -> #builder_ident #ty_generics {
                 #builder_ident {
-                    #required_new_fields
-                    #empty_new_fields
+                    #builder_new_fields
                 }
             }
 
-            pub fn build(&mut self) -> #ident #ty_generics {
-                #ident {
-                    #build_fn_struct_fields
+            pub fn build(&mut self) -> std::result::Result<#ident #ty_generics, ::simple_builder::SimpleBuilderError> {
+                let mut errors = vec![];
+                #build_required_checks
+                if !errors.is_empty() {
+                    return std::result::Result::Err(::simple_builder::SimpleBuilderError::BuildError(errors));
                 }
+
+                std::result::Result::Ok(#ident {
+                    #build_fn_struct_fields
+                })
             }
 
             #builder_setter_methods
@@ -227,6 +203,48 @@ pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     };
 
     output.into()
+}
+
+fn path_is_option(path: &Path) -> bool {
+    path.leading_colon.is_none()
+        && path.segments.len() == 1
+        && path.segments.iter().next().unwrap().ident == "Option"
+}
+
+fn type_is_option(ty: &Type) -> bool {
+    match ty {
+        Type::Path(type_path) if type_path.qself.is_none() && path_is_option(&type_path.path) => {
+            let type_params: &PathArguments = &(type_path.path.segments.first().unwrap()).arguments;
+
+            if let PathArguments::AngleBracketed(params) = type_params {
+                return matches!(params.args.first().unwrap(), GenericArgument::Type(_ty));
+            } else {
+                return false;
+            }
+        }
+        _ => false,
+    }
+}
+
+fn extract_type_from_option(ty: &Type) -> &Type {
+    match ty {
+        Type::Path(type_path) if type_path.qself.is_none() && path_is_option(&type_path.path) => {
+            let type_params: &PathArguments = &(type_path.path.segments.first().unwrap()).arguments;
+
+            let generic_arg = match type_params {
+                PathArguments::AngleBracketed(params) => params.args.first().unwrap(),
+                _ => panic!("Could not find generic parameter in Option<...>"),
+            };
+
+            match generic_arg {
+                GenericArgument::Type(ty) => ty,
+                _ => panic!(
+                    "Found something other than a type as a generic parameter to Option<...>"
+                ),
+            }
+        }
+        _ => ty,
+    }
 }
 
 fn has_attr(field: &Field, attr: &'static str) -> bool {
@@ -248,33 +266,4 @@ fn has_nested_attr(attr: &Attribute, name: &'static str) -> bool {
     }
 
     has_attr
-}
-
-fn extract_type_from_option(ty: &Type) -> &Type {
-    fn path_is_option(path: &Path) -> bool {
-        path.leading_colon.is_none()
-            && path.segments.len() == 1
-            && path.segments.iter().next().unwrap().ident == "Option"
-    }
-
-    match ty {
-        Type::Path(type_path) if type_path.qself.is_none() && path_is_option(&type_path.path) => {
-            let type_params: &PathArguments = &(type_path.path.segments.first().unwrap()).arguments;
-
-            let generic_arg = match type_params {
-                PathArguments::AngleBracketed(params) => params.args.first().unwrap(),
-                _ => panic!("Could not find generic parameter in Option<...>"),
-            };
-
-            match generic_arg {
-                GenericArgument::Type(ty) => ty,
-                _ => panic!(
-                    "Found something other than a type as a generic parameter to Option<...>"
-                ),
-            }
-        }
-        _ => panic!(
-            "Struct fields must be of type Option<...>, or have #[builder(required)] attribute."
-        ),
-    }
 }
